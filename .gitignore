@@ -1,0 +1,31 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Large trained models 
+*.keras
+*.h5
+*.pkl
+
+# Temporary outputs
+*_predictions.csv
+*_metrics.json
+*_history.json
+
+
+# Large datasets 
+*.csv

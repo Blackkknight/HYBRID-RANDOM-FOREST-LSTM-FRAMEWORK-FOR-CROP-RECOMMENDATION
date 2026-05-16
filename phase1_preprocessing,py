@@ -1,0 +1,435 @@
+"""
+=======================================================================
+PHASE 1: MULTI-SOURCE DATA MERGING & PREPROCESSING
+Region-Aware Hybrid Deep Learning for Crop Yield Prediction
+=======================================================================
+DATASETS TO DOWNLOAD (all free on Kaggle):
+  1. https://www.kaggle.com/datasets/akshatgupta7/crop-yield-in-indian-states-dataset
+     → Save as: crop_yield.csv
+  2. https://www.kaggle.com/datasets/atharvaingle/crop-recommendation-dataset
+     → Save as: crop_recommendation.csv
+  3. https://www.kaggle.com/datasets/rajanand/rainfall-in-india
+     → Save as: rainfall_india.csv
+=======================================================================
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+import os, json, warnings
+warnings.filterwarnings("ignore")
+
+OUTPUT_DIR = "outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# -----------------------------------------------------------------------
+# HELPER: find the actual column name regardless of spacing/casing
+# -----------------------------------------------------------------------
+def find_col(df, candidates):
+    """Return the first matching column name from candidates list."""
+    cols_lower = {c.lower().strip(): c for c in df.columns}
+    for cand in candidates:
+        if cand.lower().strip() in cols_lower:
+            return cols_lower[cand.lower().strip()]
+    return None
+
+def require_col(df, candidates, label):
+    col = find_col(df, candidates)
+    if col is None:
+        raise KeyError(
+            f"\n❌ Could not find '{label}' column.\n"
+            f"   Tried: {candidates}\n"
+            f"   Available columns: {list(df.columns)}\n"
+            f"   → Rename the column in your CSV to match one of the names above."
+        )
+    return col
+
+# -----------------------------------------------------------------------
+# REGION MAP
+# -----------------------------------------------------------------------
+REGION_MAP = {
+    "Uttar Pradesh":"North","Punjab":"North","Haryana":"North",
+    "Rajasthan":"North","Himachal Pradesh":"North","Uttarakhand":"North",
+    "Jammu And Kashmir":"North","Delhi":"North","Uttaranchal":"North",
+    "Chandigarh":"North","Ladakh":"North",
+    "Tamil Nadu":"South","Karnataka":"South","Kerala":"South",
+    "Andhra Pradesh":"South","Telangana":"South","Puducherry":"South",
+    "West Bengal":"East","Bihar":"East","Odisha":"East","Orissa":"East",
+    "Jharkhand":"East","Assam":"East","Chhattisgarh":"East",
+    "Meghalaya":"East","Manipur":"East","Nagaland":"East",
+    "Tripura":"East","Arunachal Pradesh":"East","Mizoram":"East","Sikkim":"East",
+    "Maharashtra":"West","Gujarat":"West","Madhya Pradesh":"West","Goa":"West",
+}
+
+CROP_KEYWORDS = ["Rice","Wheat","Maize","Cotton","Sugarcane",
+                 "Jute","Rapeseed","Soyabean","Bajra"]
+
+CROP_SOIL_FALLBACK = {
+    "Rice":      (80,  40, 40, 6.5, 23.0, 82.0),
+    "Wheat":     (120, 60, 30, 6.5, 15.0, 65.0),
+    "Maize":     (100, 50, 40, 6.2, 22.0, 65.0),
+    "Cotton":    (120, 50, 30, 6.5, 25.0, 60.0),
+    "Sugarcane": (100, 40, 50, 6.5, 27.0, 80.0),
+    "Jute":      (80,  40, 40, 6.5, 26.0, 80.0),
+    "Rapeseed":  (80,  40, 40, 6.0, 15.0, 65.0),
+    "Soyabean":  (40,  60, 40, 6.5, 28.0, 65.0),
+    "Bajra":     (80,  40, 20, 6.0, 28.0, 55.0),
+}
+
+# -----------------------------------------------------------------------
+# STEP 1: LOAD & DIAGNOSE
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 1: Load crop_yield.csv")
+print("=" * 65)
+
+df = pd.read_csv("crop_yield.csv")
+
+# Strip whitespace from ALL column names immediately
+df.columns = df.columns.str.strip()
+
+print(f"  Raw columns : {list(df.columns)}")
+print(f"  Shape       : {df.shape}")
+print(f"\n  First row preview:\n{df.head(1).to_string()}\n")
+
+# -----------------------------------------------------------------------
+# STEP 2: STANDARDISE COLUMN NAMES
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 2: Standardise Column Names")
+print("=" * 65)
+
+# Detect each key column with multiple possible spellings
+COL_STATE  = require_col(df, ["State_Name","State","state_name","StateName","STATE"], "State")
+COL_CROP   = require_col(df, ["Crop","crop","CROP","Crop_Name","CropName"], "Crop")
+COL_YEAR   = require_col(df, ["Crop_Year","Year","crop_year","YEAR","CropYear"], "Year")
+COL_SEASON = find_col(df,    ["Season","season","SEASON"])
+COL_AREA   = find_col(df,    ["Area","area","AREA","Area_ha"])
+COL_PROD   = find_col(df,    ["Production","production","PRODUCTION","Prod"])
+COL_YIELD  = require_col(df, ["Yield","yield","YIELD","Yield_kg_ha","Yield (kg/ha)"], "Yield")
+COL_RAIN   = find_col(df,    ["Annual_Rainfall","Rainfall","annual_rainfall","RAINFALL","Rain"])
+COL_FERT   = find_col(df,    ["Fertilizer","fertilizer","Fertiliser","FERTILIZER"])
+COL_PEST   = find_col(df,    ["Pesticide","pesticide","PESTICIDE"])
+
+print(f"  State   → '{COL_STATE}'")
+print(f"  Crop    → '{COL_CROP}'")
+print(f"  Year    → '{COL_YEAR}'")
+print(f"  Season  → '{COL_SEASON}'")
+print(f"  Area    → '{COL_AREA}'")
+print(f"  Prod    → '{COL_PROD}'")
+print(f"  Yield   → '{COL_YIELD}'")
+print(f"  Rain    → '{COL_RAIN}'")
+print(f"  Fert    → '{COL_FERT}'")
+print(f"  Pest    → '{COL_PEST}'\n")
+
+# Rename to standard names for rest of script
+rename = {
+    COL_STATE: "State_Name",
+    COL_CROP:  "Crop",
+    COL_YEAR:  "Crop_Year",
+    COL_YIELD: "Yield",
+}
+if COL_SEASON: rename[COL_SEASON] = "Season"
+if COL_AREA:   rename[COL_AREA]   = "Area"
+if COL_PROD:   rename[COL_PROD]   = "Production"
+if COL_RAIN:   rename[COL_RAIN]   = "Annual_Rainfall"
+if COL_FERT:   rename[COL_FERT]   = "Fertilizer"
+if COL_PEST:   rename[COL_PEST]   = "Pesticide"
+
+df.rename(columns=rename, inplace=True)
+
+# Clean text columns
+df["State_Name"] = df["State_Name"].astype(str).str.strip().str.title()
+df["Crop"]       = df["Crop"].astype(str).str.strip().str.title()
+df["Crop_Year"]  = pd.to_numeric(df["Crop_Year"], errors="coerce")
+df["Yield"]      = pd.to_numeric(df["Yield"], errors="coerce")
+df.dropna(subset=["Crop_Year", "Yield"], inplace=True)
+df["Crop_Year"]  = df["Crop_Year"].astype(int)
+
+print(f"  Standardised columns: {list(df.columns)}")
+print(f"  Years: {df['Crop_Year'].min()} – {df['Crop_Year'].max()}")
+print(f"  States: {df['State_Name'].nunique()}   Crops: {df['Crop'].nunique()}\n")
+
+# -----------------------------------------------------------------------
+# STEP 3: ASSIGN REGIONS
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 3: Assign Agro-Climatic Regions")
+print("=" * 65)
+
+df["Region"] = df["State_Name"].map(REGION_MAP)
+unmapped = df[df["Region"].isna()]["State_Name"].unique()
+if len(unmapped):
+    print(f"  ⚠ Unmapped states (dropped): {unmapped}")
+df.dropna(subset=["Region"], inplace=True)
+print(df["Region"].value_counts().to_string(), "\n")
+
+# -----------------------------------------------------------------------
+# STEP 4: FILTER TARGET CROPS
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 4: Filter Target Crops")
+print("=" * 65)
+
+def normalize_crop(name):
+    for kw in CROP_KEYWORDS:
+        if kw.lower() in name.lower():
+            return kw
+    return None
+
+df["Crop"] = df["Crop"].apply(normalize_crop)
+df.dropna(subset=["Crop"], inplace=True)
+
+print(f"  Crops retained : {sorted(df['Crop'].unique())}")
+print(f"  Rows           : {len(df)}\n")
+
+# -----------------------------------------------------------------------
+# STEP 5: MERGE SOIL + CLIMATE FEATURES
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 5: Merge Extra Features (N, P, K, pH, Temp, Humidity)")
+print("=" * 65)
+
+if os.path.exists("crop_recommendation.csv"):
+    rec = pd.read_csv("crop_recommendation.csv")
+    rec.columns = rec.columns.str.strip()
+    # detect label column
+    label_col = find_col(rec, ["label","Crop","crop","Label"])
+    if label_col:
+        rec["Crop"] = rec[label_col].astype(str).str.strip().str.title().apply(normalize_crop)
+    rec.dropna(subset=["Crop"], inplace=True)
+
+    n_col   = find_col(rec, ["N","nitrogen","n"])
+    p_col   = find_col(rec, ["P","phosphorus","p"])
+    k_col   = find_col(rec, ["K","potassium","k"])
+    ph_col  = find_col(rec, ["ph","pH","PH"])
+    tmp_col = find_col(rec, ["temperature","Temperature","temp","Temp"])
+    hum_col = find_col(rec, ["humidity","Humidity","Hum"])
+
+    agg = {}
+    for name, col in [("N",n_col),("P",p_col),("K",k_col),("pH",ph_col),
+                      ("Temperature",tmp_col),("Humidity",hum_col)]:
+        if col: agg[name] = (col, "mean")
+
+    crop_profile = rec.groupby("Crop").agg(**agg).reset_index()
+    print("  ✅ Loaded crop_recommendation.csv")
+else:
+    print("  ⚠ crop_recommendation.csv not found → using built-in fallback values")
+    crop_profile = pd.DataFrame([
+        {"Crop": c, "N": v[0], "P": v[1], "K": v[2],
+         "pH": v[3], "Temperature": v[4], "Humidity": v[5]}
+        for c, v in CROP_SOIL_FALLBACK.items()
+    ])
+
+df = df.merge(crop_profile, on="Crop", how="left")
+
+# Fill any still-missing soil/climate columns with crop medians
+for col in ["N","P","K","pH","Temperature","Humidity"]:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+        df[col].fillna(df[col].median(), inplace=True)
+
+# Merge IMD rainfall
+if os.path.exists("rainfall_india.csv"):
+    rain = pd.read_csv("rainfall_india.csv")
+    rain.columns = rain.columns.str.strip()
+    sub_col  = find_col(rain, ["SUBDIVISION","State","state","subdivision"])
+    year_col = find_col(rain, ["YEAR","Year","year"])
+    ann_col  = find_col(rain, ["ANNUAL","Annual","annual","Total"])
+    if sub_col and year_col:
+        if ann_col is None:
+            monthly = [c for c in rain.columns if c not in [sub_col, year_col]]
+            rain["ANNUAL_CALC"] = rain[monthly].apply(pd.to_numeric, errors="coerce").sum(axis=1)
+            ann_col = "ANNUAL_CALC"
+        rain_a = rain[[sub_col, year_col, ann_col]].copy()
+        rain_a.columns = ["State_Name", "Crop_Year", "Rainfall_IMD"]
+        rain_a["State_Name"] = rain_a["State_Name"].str.strip().str.title()
+        rain_a["Crop_Year"]  = pd.to_numeric(rain_a["Crop_Year"], errors="coerce").astype("Int64")
+        df = df.merge(rain_a, on=["State_Name","Crop_Year"], how="left")
+        if "Annual_Rainfall" in df.columns:
+            df["Annual_Rainfall"] = df["Annual_Rainfall"].fillna(df["Rainfall_IMD"])
+            df.drop(columns=["Rainfall_IMD"], inplace=True)
+        else:
+            df.rename(columns={"Rainfall_IMD":"Annual_Rainfall"}, inplace=True)
+        print("  ✅ Merged rainfall_india.csv")
+
+print(f"\n  Columns after merge: {list(df.columns)}\n")
+
+# -----------------------------------------------------------------------
+# STEP 6: MISSING VALUE HANDLING
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 6: Handle Missing Values")
+print("=" * 65)
+
+miss_before = df.isnull().sum()
+miss_before = miss_before[miss_before > 0]
+print("  Missing before:\n", miss_before if len(miss_before) else "  None ✅")
+
+df.sort_values(["State_Name","Crop","Crop_Year"], inplace=True)
+num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+df[num_cols] = (
+    df.groupby(["State_Name","Crop"])[num_cols]
+    .transform(lambda g: g.interpolate(method="linear", limit_direction="both"))
+)
+for col in num_cols:
+    df[col].fillna(df[col].median(), inplace=True)
+
+df.dropna(subset=["Yield"], inplace=True)
+print(f"\n  Missing after: {df.isnull().sum().sum()} {'✅' if df.isnull().sum().sum()==0 else ''}\n")
+
+# -----------------------------------------------------------------------
+# STEP 7: TIME-SERIES FEATURE ENGINEERING
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 7: Time-Series Feature Engineering")
+print("=" * 65)
+
+df.sort_values(["State_Name","Crop","Crop_Year"], inplace=True)
+grp = df.groupby(["State_Name","Crop"])
+
+for lag in [1, 2, 3]:
+    df[f"Yield_lag_{lag}"] = grp["Yield"].shift(lag)
+
+df["Yield_roll_mean3"] = grp["Yield"].transform(lambda x: x.rolling(3, min_periods=1).mean())
+df["Yield_roll_std3"]  = grp["Yield"].transform(lambda x: x.rolling(3, min_periods=1).std().fillna(0))
+df["Yield_yoy_change"] = grp["Yield"].diff().fillna(0)
+
+if "Annual_Rainfall" in df.columns:
+    df["Rain_roll_mean3"] = grp["Annual_Rainfall"].transform(lambda x: x.rolling(3, min_periods=1).mean())
+    df["Rain_yoy_change"] = grp["Annual_Rainfall"].diff().fillna(0)
+
+if "Temperature" in df.columns and "Annual_Rainfall" in df.columns:
+    df["Temp_x_Rain"] = df["Temperature"] * df["Annual_Rainfall"]
+
+if all(c in df.columns for c in ["N","P","K"]):
+    df["NPK_total"] = df["N"] + df["P"] + df["K"]
+
+df.dropna(subset=["Yield_lag_1","Yield_lag_2","Yield_lag_3"], inplace=True)
+print(f"  Features added: lag_1/2/3, roll_mean3, roll_std3, yoy_change, NPK_total, Temp_x_Rain")
+print(f"  Dataset shape : {df.shape}\n")
+
+# -----------------------------------------------------------------------
+# STEP 8: LABEL ENCODING
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 8: Label Encoding")
+print("=" * 65)
+
+le = {}
+for col in ["State_Name","Crop","Region"]:
+    le[col] = LabelEncoder()
+    df[f"{col}_Enc"] = le[col].fit_transform(df[col])
+if "Season" in df.columns:
+    le["Season"] = LabelEncoder()
+    df["Season_Enc"] = le["Season"].fit_transform(df["Season"].fillna("Unknown"))
+print("  Done ✅\n")
+
+# -----------------------------------------------------------------------
+# STEP 9: NORMALIZATION
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 9: Min-Max Normalization")
+print("=" * 65)
+
+SCALE_CANDIDATES = [
+    "Area","Production","Yield","Annual_Rainfall","Fertilizer","Pesticide",
+    "N","P","K","pH","Temperature","Humidity","NPK_total",
+    "Yield_lag_1","Yield_lag_2","Yield_lag_3",
+    "Yield_roll_mean3","Yield_roll_std3","Yield_yoy_change",
+    "Rain_roll_mean3","Rain_yoy_change","Temp_x_Rain",
+]
+SCALE_COLS = [c for c in SCALE_CANDIDATES if c in df.columns]
+scaler = MinMaxScaler()
+df[[f"{c}_scaled" for c in SCALE_COLS]] = scaler.fit_transform(df[SCALE_COLS])
+print(f"  Scaled {len(SCALE_COLS)} features: {SCALE_COLS}\n")
+
+# -----------------------------------------------------------------------
+# STEP 10: TRAIN/TEST SPLIT + SAVE
+# -----------------------------------------------------------------------
+print("=" * 65)
+print("STEP 10: Train/Test Split & Save")
+print("=" * 65)
+
+SPLIT_YEAR = 2015
+train_df = df[df["Crop_Year"] <= SPLIT_YEAR].copy()
+test_df  = df[df["Crop_Year"] >  SPLIT_YEAR].copy()
+print(f"  Train: {train_df['Crop_Year'].min()}–{SPLIT_YEAR}  → {len(train_df)} rows")
+print(f"  Test : {SPLIT_YEAR+1}–{test_df['Crop_Year'].max()} → {len(test_df)} rows\n")
+
+df.to_csv(       f"{OUTPUT_DIR}/full_processed.csv", index=False)
+train_df.to_csv( f"{OUTPUT_DIR}/train_data.csv",     index=False)
+test_df.to_csv(  f"{OUTPUT_DIR}/test_data.csv",      index=False)
+
+for region in sorted(df["Region"].unique()):
+    df[df["Region"]==region].to_csv(
+        f"{OUTPUT_DIR}/region_{region.lower()}.csv", index=False)
+    print(f"  Saved region_{region.lower()}.csv  ({len(df[df['Region']==region])} rows)")
+
+with open(f"{OUTPUT_DIR}/label_encoders.json","w") as f:
+    json.dump({col: list(enc.classes_) for col, enc in le.items()}, f, indent=2)
+print(f"\n  Saved label_encoders.json")
+
+# -----------------------------------------------------------------------
+# STEP 11: EDA PLOTS
+# -----------------------------------------------------------------------
+print("\n" + "=" * 65)
+print("STEP 11: EDA Plots")
+print("=" * 65)
+
+# Yield by crop
+plt.figure(figsize=(11,5))
+avg = df.groupby("Crop")["Yield"].mean().sort_values(ascending=False)
+sns.barplot(x=avg.index, y=avg.values, palette="viridis")
+plt.title("Average Yield (kg/ha) by Crop"); plt.xticks(rotation=30, ha="right")
+plt.ylabel("Avg Yield"); plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/plot_yield_by_crop.png", dpi=150); plt.close()
+print("  Saved plot_yield_by_crop.png")
+
+# Yield trend by region
+plt.figure(figsize=(12,5))
+ry = df.groupby(["Crop_Year","Region"])["Yield"].mean().reset_index()
+for region in sorted(ry["Region"].unique()):
+    d = ry[ry["Region"]==region]
+    plt.plot(d["Crop_Year"], d["Yield"], marker="o", label=region)
+plt.axvline(x=2015, color="red", linestyle="--", label="Train/Test Split")
+plt.title("Avg Yield Trend by Region"); plt.xlabel("Year"); plt.ylabel("Avg Yield")
+plt.legend(); plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/plot_yield_trend.png", dpi=150); plt.close()
+print("  Saved plot_yield_trend.png")
+
+# Yield distribution by region
+plt.figure(figsize=(10,5))
+for region in sorted(df["Region"].unique()):
+    df[df["Region"]==region]["Yield"].plot(kind="kde", label=region)
+plt.title("Yield Distribution by Region"); plt.xlabel("Yield (kg/ha)")
+plt.legend(); plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/plot_yield_dist.png", dpi=150); plt.close()
+print("  Saved plot_yield_dist.png")
+
+# Correlation heatmap
+key_feats = [c for c in ["Yield","Annual_Rainfall","Temperature","Humidity",
+                          "N","P","K","pH","Fertilizer","NPK_total",
+                          "Yield_lag_1","Yield_roll_mean3"] if c in df.columns]
+plt.figure(figsize=(12,9))
+sns.heatmap(df[key_feats].corr(), annot=True, fmt=".2f", cmap="coolwarm",
+            square=True, linewidths=0.5)
+plt.title("Feature Correlation Heatmap"); plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/plot_correlation.png", dpi=150); plt.close()
+print("  Saved plot_correlation.png")
+
+# -----------------------------------------------------------------------
+# FINAL SUMMARY
+# -----------------------------------------------------------------------
+print("\n" + "=" * 65)
+print("✅ PHASE 1 COMPLETE")
+print("=" * 65)
+print(f"  Records   : {len(df)}  (Train {len(train_df)} / Test {len(test_df)})")
+print(f"  Regions   : {sorted(df['Region'].unique())}")
+print(f"  Crops     : {sorted(df['Crop'].unique())}")
+print(f"  Features  : {len(SCALE_COLS)} numerical + encoded categoricals")
+print(f"  Outputs   : ./{OUTPUT_DIR}/")
+print(f"\n  👉 Next: Run phase2_random_forest.py")
