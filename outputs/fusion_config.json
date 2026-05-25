@@ -1,0 +1,5 @@
+{
+  "strategy": "Constrained Optimised",
+  "alpha_RF": 0.9,
+  "beta_LSTM": 0.1
+}
