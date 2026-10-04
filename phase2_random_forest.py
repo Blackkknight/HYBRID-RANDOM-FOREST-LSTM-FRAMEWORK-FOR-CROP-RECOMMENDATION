@@ -333,4 +333,3 @@ print(f"  Test   → RMSE={t['test']['RMSE']}   MAE={t['test']['MAE']}   R²={t[
 print(f"  CV R²  → {metrics['cross_val_r2']['mean']} ± {metrics['cross_val_r2']['std']}")
 print(f"\n  Saved: rf_model.pkl, rf_predictions.csv, rf_metrics.json")
 print(f"  Plots : rf_actual_vs_pred, rf_feature_importance, rf_region_r2, rf_residuals, rf_cv_scores")
-print(f"\n  👉 Next: Run phase3_lstm.py")

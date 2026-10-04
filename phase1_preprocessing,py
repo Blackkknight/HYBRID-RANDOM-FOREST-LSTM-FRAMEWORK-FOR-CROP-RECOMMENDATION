@@ -94,9 +94,6 @@ print(f"  Raw columns : {list(df.columns)}")
 print(f"  Shape       : {df.shape}")
 print(f"\n  First row preview:\n{df.head(1).to_string()}\n")
 
-# -----------------------------------------------------------------------
-# STEP 2: STANDARDISE COLUMN NAMES
-# -----------------------------------------------------------------------
 print("=" * 65)
 print("STEP 2: Standardise Column Names")
 print("=" * 65)
@@ -432,4 +429,3 @@ print(f"  Regions   : {sorted(df['Region'].unique())}")
 print(f"  Crops     : {sorted(df['Crop'].unique())}")
 print(f"  Features  : {len(SCALE_COLS)} numerical + encoded categoricals")
 print(f"  Outputs   : ./{OUTPUT_DIR}/")
-print(f"\n  👉 Next: Run phase2_random_forest.py")
