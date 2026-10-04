@@ -1,0 +1,141 @@
+{
+  "best_fusion_strategy": "Constrained Optimised",
+  "alpha_RF": 0.9,
+  "beta_LSTM": 0.1,
+  "hybrid": {
+    "RMSE": 1.1906,
+    "MAE": 0.3723,
+    "R2": 0.9882
+  },
+  "rf_aligned": {
+    "RMSE": 1.1509,
+    "MAE": 0.3223,
+    "R2": 0.989
+  },
+  "lstm_aligned": {
+    "RMSE": 2.7016,
+    "MAE": 1.4057,
+    "R2": 0.9393
+  },
+  "region_wise": {
+    "East": {
+      "RF_R2": 0.9935,
+      "LSTM_R2": 0.8967,
+      "Hybrid_R2": 0.9916,
+      "Hybrid_RMSE": 0.6434,
+      "n": 436
+    },
+    "North": {
+      "RF_R2": 0.9987,
+      "LSTM_R2": 0.9467,
+      "Hybrid_R2": 0.9986,
+      "Hybrid_RMSE": 0.5584,
+      "n": 121
+    },
+    "South": {
+      "RF_R2": 0.988,
+      "LSTM_R2": 0.9472,
+      "Hybrid_R2": 0.9869,
+      "Hybrid_RMSE": 1.515,
+      "n": 309
+    },
+    "West": {
+      "RF_R2": 0.9673,
+      "LSTM_R2": 0.9556,
+      "Hybrid_R2": 0.9681,
+      "Hybrid_RMSE": 1.9641,
+      "n": 123
+    }
+  },
+  "crop_wise": {
+    "Bajra": {
+      "RF_R2": 0.9566,
+      "LSTM_R2": 0.131,
+      "Hybrid_R2": 0.9379,
+      "Hybrid_RMSE": 0.871,
+      "Hybrid_MAE": 0.4184
+    },
+    "Cotton": {
+      "RF_R2": 0.8352,
+      "LSTM_R2": -2.5771,
+      "Hybrid_R2": 0.7774,
+      "Hybrid_RMSE": 0.4944,
+      "Hybrid_MAE": 0.3733
+    },
+    "Jute": {
+      "RF_R2": 0.9925,
+      "LSTM_R2": -0.5361,
+      "Hybrid_R2": 0.9636,
+      "Hybrid_RMSE": 1.0762,
+      "Hybrid_MAE": 0.7944
+    },
+    "Maize": {
+      "RF_R2": 0.9172,
+      "LSTM_R2": -0.203,
+      "Hybrid_R2": 0.9034,
+      "Hybrid_RMSE": 0.4711,
+      "Hybrid_MAE": 0.3118
+    },
+    "Rapeseed": {
+      "RF_R2": 0.9508,
+      "LSTM_R2": -21.0015,
+      "Hybrid_R2": 0.6507,
+      "Hybrid_RMSE": 0.2335,
+      "Hybrid_MAE": 0.2147
+    },
+    "Rice": {
+      "RF_R2": 0.8558,
+      "LSTM_R2": -0.4813,
+      "Hybrid_R2": 0.8197,
+      "Hybrid_RMSE": 0.3141,
+      "Hybrid_MAE": 0.2184
+    },
+    "Soyabean": {
+      "RF_R2": 0.9143,
+      "LSTM_R2": -8.6797,
+      "Hybrid_R2": 0.8199,
+      "Hybrid_RMSE": 0.1862,
+      "Hybrid_MAE": 0.149
+    },
+    "Sugarcane": {
+      "RF_R2": 0.9497,
+      "LSTM_R2": 0.8204,
+      "Hybrid_R2": 0.9481,
+      "Hybrid_RMSE": 6.7597,
+      "Hybrid_MAE": 3.8049
+    },
+    "Wheat": {
+      "RF_R2": 0.9319,
+      "LSTM_R2": -0.309,
+      "Hybrid_R2": 0.9043,
+      "Hybrid_RMSE": 0.3797,
+      "Hybrid_MAE": 0.2407
+    }
+  },
+  "all_strategies": {
+    "Equal Weight": {
+      "R2": 0.9758,
+      "RMSE": 1.706,
+      "alpha": 0.5,
+      "beta": 0.5
+    },
+    "R\u00b2-Weighted": {
+      "R2": 0.9764,
+      "RMSE": 1.6836,
+      "alpha": 0.5129,
+      "beta": 0.4871
+    },
+    "Constrained Optimised": {
+      "R2": 0.9882,
+      "RMSE": 1.1906,
+      "alpha": 0.9,
+      "beta": 0.1
+    },
+    "Inverse-RMSE": {
+      "R2": 0.9839,
+      "RMSE": 1.3911,
+      "alpha": 0.7013,
+      "beta": 0.2987
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "baseline": {
+    "train": {
+      "RMSE": 0.797,
+      "MAE": 0.1689,
+      "R2": 0.9982
+    },
+    "test": {
+      "RMSE": 1.1177,
+      "MAE": 0.3315,
+      "R2": 0.9966
+    }
+  },
+  "tuned": {
+    "train": {
+      "RMSE": 1.5379,
+      "MAE": 0.3479,
+      "R2": 0.9933
+    },
+    "test": {
+      "RMSE": 1.8239,
+      "MAE": 0.543,
+      "R2": 0.991
+    }
+  },
+  "cross_val_r2": {
+    "mean": 0.9525,
+    "std": 0.0299
+  },
+  "region_wise": {
+    "East": {
+      "RMSE": 1.1258,
+      "MAE": 0.3792,
+      "R2": 0.993,
+      "n": 468
+    },
+    "North": {
+      "RMSE": 0.9989,
+      "MAE": 0.3746,
+      "R2": 0.9975,
+      "n": 216
+    },
+    "South": {
+      "RMSE": 2.8728,
+      "MAE": 0.9444,
+      "R2": 0.9884,
+      "n": 254
+    },
+    "West": {
+      "RMSE": 2.196,
+      "MAE": 0.6194,
+      "R2": 0.9839,
+      "n": 144
+    }
+  },
+  "best_params": {
+    "max_depth": null,
+    "max_features": "sqrt",
+    "min_samples_leaf": 2,
+    "min_samples_split": 2,
+    "n_estimators": 300
+  }
+}
