@@ -16,10 +16,6 @@ env/
 .DS_Store
 Thumbs.db
 
-# Large trained models 
-*.keras
-*.h5
-*.pkl
 
 # Temporary outputs
 *_predictions.csv
